@@ -1,4 +1,4 @@
-function [gamma, lambda] = stc_qp(H, q, M, D, x)
+function [gamma, lambda] = stc_qp(H, q, M, D, x, C)
 %% Sparse Tangent Coding with Quadratic Prior 
 %
 % Input
@@ -23,13 +23,15 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x)
     x = sparse(x);
 
     % prepare mosek LP
-    addpath('/gpfs/work/j/jxy198/software/mosek/7/toolbox/r2013a/');
-    prob.c = [1; ones(m,1); zeros(m,1)];
+    %addpath('/gpfs/work/j/jxy198/software/mosek/7/toolbox/r2013a/');
+    addpath('/Users/bobye/mosek/7/toolbox/r2012a');
+    
+    prob.c = [1; C * ones(m,1); zeros(m,1)];
     prob.subi = reshape([1:2*m; 1:2*m], 4*m,1);
     prob.subj = reshape(repmat([2:m+1; (2+m):(2*m+1)], 1, 2), 4*m, 1); 
     prob.valij = [ones(2*m,1); reshape([ones(1,m); -ones(1,m)], 2*m,1)];
     prob.a = sparse(prob.subi, prob.subj, prob.valij);
-    prob.blc = zeros(4*m, 1);
+    prob.blc = zeros(2*m, 1);
     prob.buc = [];
     prob.blx = [zeros(1+m,1); -inf(m,1)];
     prob.bux = [];    
@@ -48,16 +50,14 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x)
     lambda = zeros(m,1);
 
     % main iterations (cutting plane methods)
-    maxIters = 10;
+    maxIters = 100;
+    fprintf('prim res\tobj\n');
     for iter = 1:maxIters
         CC = H + gamma * M;
         for i=1:m            
             CC = CC + lambda(i) * DD{i};
         end
-        [v, d] = eigs(CC, 1, 'sa');
-        if (d >= -1E-5) 
-            break;
-        end
+        [v, d] = eigs(CC, 1, 'sa');       
         
         hh = v' * H * v;
         mm = v' * M * v;        
@@ -66,15 +66,21 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x)
         % add one more constraint: hh + mm * gamma + dd' * lambda >= 0
         prob.a = [prob.a; mm, zeros(1,m), dd];
         prob.blc = [prob.blc; -hh];
-        size(prob.blc)
-        [rcode, res] = mosekopt('minimize', prob, param);
+        [rcode, res] = mosekopt('minimize echo(0)', prob, param);
         try 
-            gamma = res.sol.bas.xx(1);
-            lambda = res.sol.bas.xx(end-m+1, end);            
+            sol = res.sol.bas.xx;
+            gamma = sol(1);
+            lambda = sol((end-m+1): end);            
         catch
             fprintf('MSKERROR: Could not get solution');
         end
-            
+        
+        
+        fprintf('%f\t%f\n', d, prob.c' * sol);
+        if (d >= -1E-5) 
+            break;
+        end
+        
     end
 end
 
