@@ -1,4 +1,6 @@
 function [H] = affinity_matrix(Im)
+% Part of this code is adapted from 
+% http://www.cs.huji.ac.il/~yweiss/Colorization/
 
 n = size(Im, 1); m = size(Im, 2);
 imgSize = n*m;

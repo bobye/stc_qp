@@ -50,9 +50,9 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x, C)
     lambda = zeros(m,1);
 
     % main iterations (cutting plane methods)
-    maxIters = 200;
-    maxConstr = 10;
-    fprintf('iter\tmax_res\t\tobj\t\tgamma\t\tnz\tseconds\n');
+    maxIters = 100;
+    maxConstr = 1;
+    fprintf('iter\tres\t\tobj\t\tgamma\t\tnz\tseconds\n');
     for iter = 1:maxIters
         tic;
         CC = H + gamma * M;
