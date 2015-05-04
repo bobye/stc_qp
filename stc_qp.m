@@ -50,25 +50,34 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x, C)
     lambda = zeros(m,1);
 
     % main iterations (cutting plane methods)
-    maxIters = 100;
-    fprintf('prim res\tobj\t\tgamma\tnz\n');
+    maxIters = 200;
+    maxConstr = 10;
+    fprintf('iter\tmax_res\t\tobj\t\tgamma\t\tnz\tseconds\n');
     for iter = 1:maxIters
+        tic;
         CC = H + gamma * M;
         for i=1:m            
             CC = CC + lambda(i) * DD{i};
         end
-        [v, d] = eigs(CC, 1, 'SR'); % R2013a       
+        CC = (CC+CC')/2.;
+        [v, d] = eigs(CC, maxConstr, 'SA'); % R2013a  
+        d=diag(d);
+        v(:,d>=0) = [];
+        d(d>=0) = [];
+        k=length(d);
         
-        hh = v' * H * v;
-        mm = v' * M * v;        
-        dd = arrayfun(@(ind) v'*DD{ind}*v, 1:m);
-        
+        hh = sum(v .* full(H * v))';
+        mm = sum(v .* full(M * v))';
+        dd = zeros(k, m);
+        for i=1:k
+            dd(i,:) = arrayfun(@(ind) v(:,k)'*DD{ind}*v(:,k), 1:m);
+        end
         % add one more constraint: hh + mm * gamma + dd' * lambda >= 0
-        prob.a = [prob.a; mm, sparse(1,m), dd];
+        prob.a = [prob.a; mm, sparse(k,m), dd];
         prob.blc = [prob.blc; -hh];
         
         % warm start
-        if (iter > 1) 
+        if (false) 
             bas = res.sol.bas;
             bas.skc = [bas.skc; 'BS'];
             bas.xc = [bas.xc; mm*gamma + dd * lambda];
@@ -87,8 +96,8 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x, C)
             fprintf('MSKERROR: Could not get solution');
         end
         
-        
-        fprintf('%f\t%f\t%f\t%d\n', d, prob.c' * sol, gamma, sum(lambda>1E-6));
+        elapsedTime = toc;
+        fprintf('%d\t%.6f\t%.3e\t%.3e\t%d\t%.1f\n', iter, min(d), prob.c' * sol, gamma, sum(abs(lambda)>1E-8), elapsedTime);
         if (d >= -1E-5) 
             break;
         end

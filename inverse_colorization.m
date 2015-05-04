@@ -1,4 +1,4 @@
-function [imgOutput, stc] = inverse_colorization(imgInput, segmentMap)
+function [gamma, lambda] = inverse_colorization(imgInput, segmentMap)
 % Inverse Colorization
 % Input
 %   imgInput: original image in RGB with size n x m x 3
@@ -17,4 +17,4 @@ q=zeros(imgSize,1);
 
 counts=histc(segmentMap(:), 1:max(segmentMap(:)));
 D=sparse(1:imgSize, segmentMap(:), 1./counts(segmentMap(:)));
-[gamma, lambda] = stc_qp(H, q, M, D, reshape(ntscIm(:,:,2), imgSize, 1), 0.0005);
+[gamma, lambda] = stc_qp(H, q, M, D, reshape(ntscIm(:,:,2), imgSize, 1), 1E-4);
