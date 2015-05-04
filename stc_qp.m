@@ -23,8 +23,8 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x, C)
     x = sparse(x);
 
     % prepare mosek LP
-    %addpath('/gpfs/work/j/jxy198/software/mosek/7/toolbox/r2013a/');
-    addpath('/Users/bobye/mosek/7/toolbox/r2012a');
+    addpath('/gpfs/work/j/jxy198/software/mosek/7/toolbox/r2013a/');
+    %addpath('/Users/bobye/mosek/7/toolbox/r2012a');
     
     prob.c = [1; C * ones(m,1); zeros(m,1)];
     prob.subi = reshape([1:2*m; 1:2*m], 4*m,1);
@@ -51,32 +51,44 @@ function [gamma, lambda] = stc_qp(H, q, M, D, x, C)
 
     % main iterations (cutting plane methods)
     maxIters = 100;
-    fprintf('prim res\tobj\n');
+    fprintf('prim res\tobj\t\tgamma\tnz\n');
     for iter = 1:maxIters
         CC = H + gamma * M;
         for i=1:m            
             CC = CC + lambda(i) * DD{i};
         end
-        [v, d] = eigs(CC, 1, 'sa');       
+        [v, d] = eigs(CC, 1, 'SR'); % R2013a       
         
         hh = v' * H * v;
         mm = v' * M * v;        
         dd = arrayfun(@(ind) v'*DD{ind}*v, 1:m);
         
         % add one more constraint: hh + mm * gamma + dd' * lambda >= 0
-        prob.a = [prob.a; mm, zeros(1,m), dd];
+        prob.a = [prob.a; mm, sparse(1,m), dd];
         prob.blc = [prob.blc; -hh];
+        
+        % warm start
+        if (iter > 1) 
+            bas = res.sol.bas;
+            bas.skc = [bas.skc; 'BS'];
+            bas.xc = [bas.xc; mm*gamma + dd * lambda];
+            bas.y = [bas.y; 0.0];
+            bas.slc = [bas.slc; 0.0];
+            bas.suc = [bas.suc; 0.0];
+            prob.sol.bas = bas;
+        end
+        
         [rcode, res] = mosekopt('minimize echo(0)', prob, param);
         try 
             sol = res.sol.bas.xx;
             gamma = sol(1);
-            lambda = sol((end-m+1): end);            
+            lambda = sol((end-m+1): end);              
         catch
             fprintf('MSKERROR: Could not get solution');
         end
         
         
-        fprintf('%f\t%f\n', d, prob.c' * sol);
+        fprintf('%f\t%f\t%f\t%d\n', d, prob.c' * sol, gamma, sum(lambda>1E-6));
         if (d >= -1E-5) 
             break;
         end
