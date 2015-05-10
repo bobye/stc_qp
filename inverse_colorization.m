@@ -15,6 +15,13 @@ H=affinity_matrix(ntscIm(:,:,1));
 M=speye(imgSize, imgSize);
 q=zeros(imgSize,1);
 
-counts=histc(segmentMap(:), 1:max(segmentMap(:)));
+counts=sqrt(histc(segmentMap(:), 1:max(segmentMap(:))));
 D=sparse(1:imgSize, segmentMap(:), 1./counts(segmentMap(:)));
-[gamma, lambda] = stc_qp(H, q, M, D, reshape(ntscIm(:,:,2), imgSize, 1), 1E-4);
+
+inputImage=ntscIm(:,:,3);
+[gamma, lambda, xx] = stc_qp(H, q, M, D, reshape(inputImage, imgSize, 1), 0.05);
+outputImage= reshape(xx, n, m);
+figure;
+imshow(inputImage, []);
+figure;
+imshow(outputImage, []);

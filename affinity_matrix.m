@@ -61,3 +61,4 @@ vals=vals(1:len);
 col_inds=col_inds(1:len);
 row_inds=row_inds(1:len);
 H=sparse(row_inds,col_inds,vals,consts_len,imgSize);
+H=H'*H;
