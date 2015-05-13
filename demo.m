@@ -1,7 +1,7 @@
 %% load an image and compute superpixels
 im=imread('../colorization/example_res.bmp');
 addpath(genpath('/gpfs/home/jxy198/work/ya-imagekit/src/misc/MatlabFns'));
-[l, Am, Sp, d] = slic(im, 320, 10, 1., 'median');
+[l, Am, Sp, d] = slic(im, 100, 10, 1., 'median');
 
 %% compute inverse colorization based on STC-QP
 [gamma, lambda]=inverse_colorization(im, l);
